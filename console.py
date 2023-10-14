@@ -10,8 +10,6 @@ from models.state import State
 from models.city import City
 from models.amenity import Amenity
 from models.review import Review
-import traceback
-from models.engine.file_storage import FileStorage
 
 
 class HBNBCommand(cmd.Cmd):
@@ -76,7 +74,7 @@ class HBNBCommand(cmd.Cmd):
                 if pline:
                     # check for *args or **kwargs
                     if pline[0] == '{' and pline[-1] == '}'\
-                            and type(eval(pline)) == dict:
+                            and type(eval(pline)) is dict:
                         _args = pline
                     else:
                         _args = pline.replace(',', '')
@@ -115,102 +113,26 @@ class HBNBCommand(cmd.Cmd):
         """ Overrides the emptyline method of CMD """
         pass
 
-        '''def do_create(self, args):
-        """ Create an object of any class with parameters """
-        if not args:
-            print("** class name missing **")
-            return
-
-        # Split the input into class name and parameters
-        parts = args.split(" ")
-
-        if parts[0] not in HBNBCommand.classes:
-            print("** class doesn't exist **")
-            return
-
-        class_name = parts[0]
-        param_string = " ".join(parts[1:])
-
-        # Initialize an empty dictionary for storing parameters
-        params = {}
-
-        # Split parameters into key-value pairs
-        param_pairs = param_string.split(",")
-
-        for param_pair in param_pairs:
-            # Split each key-value pair into key and value
-            param_key, param_value = param_pair.strip().split("=", 1)
-
-            # Remove double quotes from the value if present
-            param_value = param_value.strip('"')
-
-            # Replace underscores with spaces in the key
-            param_key = param_key.replace("_", " ")
-
-            # Determine the appropriate data type for the value
-            if param_value.isdigit():
-                param_value = int(param_value)
-            elif "." in param_value:
-                try:
-                    param_value = float(param_value)
-                except ValueError:
-                    pass
-
-            # Add the key-value pair to the parameters dictionary
-            params[param_key] = param_value
-        try:
-            # Create instance of the specified class with provided parameters
-            new_instance = eval(class_name)(**params)
-            new_instance.save()
-            print(new_instance.id, " ")
-        except Exception as e:
-            print(f"Error creating object: {e}")
-            traceback.print_exc()
-        '''
     def do_create(self, args):
-        """ Create an object of any class with parameters """
-        if not args:
-            print("** class name missing **")
-            return
-
-        # Split the input into class name and parameters
-        parts = args.split(" ")
-
-        if parts[0] not in HBNBCommand.classes:
-            print("** class doesn't exist **")
-            return
-
-        class_name = parts[0]
-        args = parts[1:]
-        params = {}
-
-        for arg in args:
-            param_split = arg.split('=')
-            if len(param_split) == 2:
-                key, value = param_split
-                if value.startswith('"') and value.endswith('"'):
-                    value = value[1:-1]
-                    value = value.replace('_', ' ')
-                    if '.' in value:
-                        try:
-                            value = float(value)
-                        except ValueError:
-                            pass
-                    else:
-                        try:
-                            value = int(value)
-                        except ValueError:
-                            pass
-                params[key] = value
-
+        """ Create an object of any class"""
         try:
-            # Create an instance of specified class with provided parameters
-            new_instance = eval(class_name)(**params)
-            new_instance.save()
-            print(new_instance.id)
-        except Exception as e:
-            print(f"Error creating object: {e}")
-            traceback.print_exc()
+            if not args:
+                raise SyntaxError()
+            arg_list = args.split(" ")
+            kw = {}
+            for arg in arg_list[1:]:
+                arg_splited = arg.split("=")
+                arg_splited[1] = eval(arg_splited[1])
+                if type(arg_splited[1]) is str:
+                    arg_splited[1] = arg_splited[1].replace("_", " ").replace('"', '\\"')
+                kw[arg_splited[0]] = arg_splited[1]
+        except SyntaxError:
+            print("** class name missing **")
+        except NameError:
+            print("** class doesn't exist **")
+        new_instance = HBNBCommand.classes[arg_list[0]](**kw)
+        new_instance.save()
+        print(new_instance.id)
 
     def help_create(self):
         """ Help information for the create method """
@@ -292,14 +214,11 @@ class HBNBCommand(cmd.Cmd):
             if args not in HBNBCommand.classes:
                 print("** class doesn't exist **")
                 return
-            cls = HBNBCommand.classes[args]
-            for k, v in storage.all(cls).items():
-                if k.split('.')[0] == args:
-                    print_list.append(str(v))
+            for k, v in storage.all(HBNBCommand.classes[args]).items():
+                print_list.append(str(v))
         else:
             for k, v in storage.all().items():
                 print_list.append(str(v))
-
         print(print_list)
 
     def help_all(self):
@@ -406,7 +325,6 @@ class HBNBCommand(cmd.Cmd):
         """ Help information for the update class """
         print("Updates an object with new information")
         print("Usage: update <className> <id> <attName> <attVal>\n")
-
 
 if __name__ == "__main__":
     HBNBCommand().cmdloop()
